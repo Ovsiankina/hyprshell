@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hyprshell Architecture</title>
+<style>
+  :root { --bg:#f6f7f9; --fg:#1b1f24; --muted:#5c6470; --line:#8a93a0;
+          --daemon:#dbeafe; --ui:#dcfce7; --ext:#fde68a; --hypr:#e9d5ff; --dim:#e5e7eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111418; --fg:#e6e9ee; --muted:#9aa4b2; --line:#6b7480;
+            --daemon:#1e3a5f; --ui:#14532d; --ext:#713f12; --hypr:#3b1d63; --dim:#2a2f36; }
+  }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg);
+         font:15px/1.45 system-ui, sans-serif; max-width:1000px; margin-inline:auto; }
+  h1 { font-size:1.4rem; margin:.2rem 0 1rem; }
+  h2 { font-size:1.05rem; margin:2rem 0 .6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .row { display:flex; gap:12px; align-items:stretch; flex-wrap:wrap; }
+  .box { border:2px solid var(--line); border-radius:10px; padding:10px 12px; flex:1 1 200px; }
+  .box b { display:block; font-size:1rem; margin-bottom:4px; }
+  .box small { color:var(--muted); display:block; }
+  .daemon { background:var(--daemon); } .ui { background:var(--ui); }
+  .ext { background:var(--ext); } .hypr { background:var(--hypr); } .dim { background:var(--dim); }
+  .arrow { text-align:center; color:var(--muted); font-size:.9rem; padding:6px 0; }
+  .arrow::before { content:"↓ "; }
+  .stack { display:flex; flex-direction:column; gap:6px; }
+  .layer { display:grid; grid-template-columns: 170px 1fr 1fr; gap:10px; align-items:center;
+           border:2px solid var(--line); border-radius:8px; padding:8px 12px; }
+  .layer code { font-weight:600; }
+  .layer small { color:var(--muted); }
+  .rules { columns:2; column-gap:24px; } .rules li { break-inside:avoid; margin-bottom:6px; }
+  @media (max-width:640px) { .layer { grid-template-columns:1fr; } .rules { columns:1; } }
+</style>
+</head>
+<body>
+<h1>Hyprshell: two processes, one GPU, zero work when idle</h1>
+
+<h2>1. Processes and data flow</h2>
+<div class="row">
+  <div class="box hypr"><b>Hyprland</b>
+    <small>.socket.sock (queries, dispatch)<br>.socket2.sock (events)<br>hyprwinwrap plugin draws wallpaper apps</small></div>
+  <div class="box ext"><b>DBus services</b>
+    <small>upower, mpris, network, notifications</small></div>
+</div>
+<div class="arrow">events in, commands out (only the daemon talks to these)</div>
+<div class="row">
+  <div class="box daemon"><b>hyprshelld</b>
+    <small>tokio + zbus + hyprland crate. No GPU.<br>
+    State cache: monitors, workspaces, clients + rects, active window, Hyprland options.<br>
+    Plugin host (pyprland shape): on_reload / on_event / on_command.<br>
+    Policy: fullscreen, occlusion, battery, lock → pause/resume animations and wallpaper apps.<br>
+    Wallpaper slots: launch app with fixed app-id, track pid, pause (hint/SIGSTOP/kill).</small></div>
+</div>
+<div class="arrow">one unix socket: subscribe(filter) → event stream, request → reply</div>
+<div class="row">
+  <div class="box ui"><b>hyprshell-ui</b>
+    <small>sctk + calloop + wgpu, one device for every surface.<br>
+    One layer surface per bar / panel / widget cluster / overlay, each with dirty + animating flags.<br>
+    Widgets via iced_layershell (or a small custom wgpu scene).<br>
+    Renders only dirty surfaces; requests frame callbacks only while animating.</small></div>
+  <div class="box ui"><b>hyprshellctl</b>
+    <small>Thin static client. <code>hyprshellctl toggle picker</code> from Hyprland binds.</small></div>
+  <div class="box ext"><b>Wallpaper apps</b>
+    <small>Any external window (mpv, cava, a Bevy game). Launched by the daemon, composited by hyprwinwrap. Not the shell's renderer.</small></div>
+</div>
+
+<h2>2. Layer stack, bottom to top (verified Hyprland render order)</h2>
+<div class="stack">
+  <div class="layer dim"><code>overlay</code><span>hyprshell-ui: app picker, dashboard, color wheel, notifications</span><small>draws while open, exclusive keyboard</small></div>
+  <div class="layer dim"><code>top</code><span>hyprshell-ui: bars, side panels (exclusive zones)</span><small>redraw on events, clock 1/min</small></div>
+  <div class="layer hypr"><code>windows</code><span>Hyprland: normal clients</span><small></small></div>
+  <div class="layer ui"><code>bottom</code><span>hyprshell-ui: desktop widgets (API status, weather, ASCII)</span><small>redraw on data change, animate only when uncovered</small></div>
+  <div class="layer ext"><code>RENDER_POST_WALLPAPER</code><span>hyprwinwrap: wallpaper app windows (slots, layered)</span><small>app's own loop, daemon pauses it</small></div>
+  <div class="layer ui"><code>background</code><span>hyprshell-ui: static wallpaper image or baked shader</span><small>redraw on theme change, half-res + 30 fps if animated</small></div>
+</div>
+
+<h2>3. Crates (cargo workspace)</h2>
+<div class="row">
+  <div class="box dim"><b>proto</b><small>shared types: events, requests, state, widget descriptors. No renderer, no Hyprland.</small></div>
+  <div class="box daemon"><b>daemon</b><small>hyprshelld library + binary</small></div>
+  <div class="box ui"><b>ui</b><small>hyprshell-ui library + binary</small></div>
+  <div class="box ui"><b>ctl</b><small>hyprshellctl</small></div>
+  <div class="box dim"><b>style</b><small>palettes, color theory, theme from Hyprland options. Pure functions.</small></div>
+</div>
+<p><small>Later splits once stable: <b>config</b> (TOML schema), <b>ascii</b> (glyph atlas + WGSL), <b>layershell</b> (sctk ↔ wgpu bridge). daemon and ui are libraries, so one binary can run both over an in-process channel; the socket is just another transport impl.</small></p>
+
+<h2>4. Rules that make it cheap</h2>
+<ul class="rules">
+  <li>Reactor, not game loop: block on fds, wake, mutate, draw dirty surfaces once, sleep.</li>
+  <li>Idle = zero GPU submissions. Animation = keep requesting frame callbacks; stop = stop requesting.</li>
+  <li>Shader cost = pixels × work per pixel × fps. Keep all three small, and fps at zero when idle.</li>
+  <li>Full-screen shaders at half/quarter res, upscaled by the compositor (wp_viewporter).</li>
+  <li>Animated surfaces capped at 30 fps; small widget shaders may run full rate.</li>
+  <li>Noise and palettes baked into textures; ASCII baked to a glyph-index texture.</li>
+  <li>Fullscreen / occluded / on battery / locked: daemon stops animations and pauses wallpaper apps.</li>
+  <li>One render pass per surface; no shell-side full-screen post pass (use Hyprland's screen shader if wanted).</li>
+</ul>
+</body>
+</html>

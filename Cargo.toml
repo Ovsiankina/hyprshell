@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["hyprshell-core", "hyprshell", "hyprshellctl"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+hyprshell-core = { path = "hyprshell-core" }
+
+# UI
+# "tokio" gives iced an async runtime so timers can sleep instead of poll.
+iced = { version = "0.14.0", features = ["tokio"] }
+# default features off: drops linux-theme-detection (mundy), which forces a
+# redraw of every surface whenever the desktop theme signal fires.
+iced_exwlshell = { version = "0.20.1", default-features = false, features = ["macros"] }
+tokio = { version = "1", features = ["time", "rt"] }
+iced_wayland_subscriber = "0.20.1"
+bytemuck = { version = "1", features = ["derive"] }
+
+# Core
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1"
+notify = "8"
+chrono = "0.4"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+opt-level = 2
+debug = 1

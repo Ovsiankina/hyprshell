@@ -1,0 +1,8 @@
+[package]
+name = "hyprshellctl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+hyprshell-core.workspace = true

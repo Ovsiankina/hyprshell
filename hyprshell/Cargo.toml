@@ -1,0 +1,17 @@
+[package]
+name = "hyprshell"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+hyprshell-core.workspace = true
+iced.workspace = true
+iced_exwlshell.workspace = true
+iced_wayland_subscriber.workspace = true
+bytemuck.workspace = true
+notify.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

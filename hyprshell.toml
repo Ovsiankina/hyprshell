@@ -1,0 +1,31 @@
+# Hyprshell configuration. Every value here is optional; a missing value uses
+# the default shown. Values marked "Hyprland" default to the running Hyprland
+# option and only need setting to override it. The file is re-read on save.
+
+[clock]
+size = 220             # side of the square surface, logical pixels
+position = "top-right" # top-left | top | top-right | left | center | right | bottom-left | bottom | bottom-right
+margin = 24            # logical pixels from the anchored edges
+show_seconds = true    # draw the second hand (one redraw per second)
+animation = false      # ease hand movement on each tick (a short burst of frames per tick)
+
+[clock.face]
+color = "#1e1e2ecc"    # #RRGGBB or #RRGGBBAA
+# border_color = "#0db7d4"   # Hyprland: general:col.active_border
+# border_width = 1           # Hyprland: general:border_size
+# rounding = 18              # Hyprland: decoration:rounding (size / 2 or more = circle)
+
+[clock.hands.hour]
+length = 0.5           # fraction of the face radius
+width = 6.0            # logical pixels
+color = "#cdd6f4"
+
+[clock.hands.minute]
+length = 0.75
+width = 4.0
+color = "#cdd6f4"
+
+[clock.hands.second]
+length = 0.85
+width = 2.0
+color = "#f38ba8"
